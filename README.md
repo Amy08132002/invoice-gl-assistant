@@ -170,14 +170,14 @@ pip install -r requirements.txt
 
 ### API key
 
-Set your Anthropic API key as an environment variable before running:
+Set your google API key as an environment variable before running:
 
 ```bash
 # macOS / Linux
-export ANTHROPIC_API_KEY=sk-ant-...
+export GOOGLE_API_KEY=AIzaSyC7NieGsg1h0n_YRebTILWbYRgyG4yOTJQ
 
 # Windows (PowerShell)
-$env:ANTHROPIC_API_KEY = "sk-ant-..."
+$env:GOOGLE_API_KEY= "AIzaSyC7NieGsg1h0n_YRebTILWbYRgyG4yOTJQ"
 ```
 
 Do not commit the key to the repository.
