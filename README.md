@@ -209,4 +209,4 @@ Results are printed to the terminal and saved to `eval_results.json`.
 - All test data is synthetic. No real invoices, PII, or internal financial records are used.
 - The chart of accounts is fictional (17 accounts). Real charts typically have hundreds.
 - This tool is a recommendation assistant only. It does not post journal entries or approve payments.
-- Model used: `claude-3-5-haiku-20241022` (fast, cost-efficient for structured extraction tasks).
+- Model used: `gemini-2.5-flash` (fast, cost-efficient for structured extraction tasks).
