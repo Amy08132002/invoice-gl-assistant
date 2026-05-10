@@ -1,92 +1,60 @@
 """
 LLM call wrapper for the Invoice GL Coding Assistant.
-Makes a single structured API call and returns a parsed result dict.
+Uses Google Gemini API.
 """
 
 import json
 import os
-import anthropic
+import google.generativeai as genai
 from prompts import build_system_prompt, build_user_message
 
 
-def get_client() -> anthropic.Anthropic:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+def get_client():
+    api_key = os.environ.get("GOOGLE_API_KEY")
     if not api_key:
-        raise EnvironmentError(
-            "ANTHROPIC_API_KEY environment variable is not set. "
-            "Please set it before running the app."
-        )
-    return anthropic.Anthropic(api_key=api_key)
+        raise EnvironmentError("GOOGLE_API_KEY environment variable is not set.")
+    genai.configure(api_key=api_key)
 
 
-def code_invoice(
-    vendor: str,
-    description: str,
-    amount: float,
-    notes: str = "",
-    model: str = "claude-3-5-haiku-20241022",
-    temperature: float = 0.0,
-) -> dict:
-    """
-    Call the LLM and return a structured GL coding recommendation.
-
-    Returns a dict with keys:
-        recommended_gl_account, account_name, expense_category,
-        reason, confidence, needs_human_review
-    On error, returns a dict with an 'error' key.
-    """
-    client = get_client()
+def code_invoice(vendor, description, amount, notes="", model="gemini-2.5-flash", temperature=0.0):
+    get_client()
     system_prompt = build_system_prompt()
     user_msg = build_user_message(vendor, description, amount, notes)
+    full_prompt = system_prompt + "\n\n" + user_msg + "\n\nIMPORTANT: Reply with ONLY a JSON object, no other text."
 
     try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=512,
-            temperature=temperature,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_msg}],
+        m = genai.GenerativeModel(model_name=model)
+        response = m.generate_content(
+            full_prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+            )
         )
-        raw = response.content[0].text.strip()
-        # Strip markdown fences if model adds them despite instructions
+        raw = response.text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
             raw = raw.strip()
-        result = json.loads(raw)
-        return result
+        return json.loads(raw)
     except json.JSONDecodeError as e:
-        return {"error": f"Failed to parse model output as JSON: {e}", "raw": raw}
+        return {"error": f"Failed to parse JSON: {e}"}
     except Exception as e:
         return {"error": str(e)}
 
 
-def code_invoice_plain_prompt(
-    vendor: str,
-    description: str,
-    amount: float,
-    notes: str = "",
-    model: str = "claude-3-5-haiku-20241022",
-) -> dict:
-    """
-    Weaker baseline: no few-shot examples, no structured output instruction,
-    no chart of accounts. Returns dict with 'raw_text' key.
-    """
-    client = get_client()
-    plain_system = (
+def code_invoice_plain_prompt(vendor, description, amount, notes="", model="gemini-2.5-flash"):
+    get_client()
+    plain_prompt = (
         "You are an accounting assistant. Given invoice details, "
-        "suggest an appropriate general ledger account category."
+        "suggest an appropriate general ledger account category.\n\n"
+        + build_user_message(vendor, description, amount, notes)
     )
-    user_msg = build_user_message(vendor, description, amount, notes)
-
     try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=256,
-            system=plain_system,
-            messages=[{"role": "user", "content": user_msg}],
-        )
-        return {"raw_text": response.content[0].text.strip()}
+        m = genai.GenerativeModel(model_name=model)
+        response = m.generate_content(plain_prompt)
+        return {"raw_text": response.text.strip()}
     except Exception as e:
         return {"error": str(e)}
